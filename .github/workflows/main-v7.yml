@@ -1,0 +1,96 @@
+name: Node.js Fullstack CI/CD V77
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  # =============================
+  # Stage 1: Pre-Build / Setup
+  # =============================
+  pre-build:
+    name: Pre-Build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-build
+          path: client/build
+
+  # =============================
+  # Stage 2: Test Backend
+  # =============================
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: pre-build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install
+
+      - name: Run backend tests
+        working-directory: server
+        run: npm test
+
+  # =============================
+  # Stage 3: Test Frontend
+  # =============================
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: pre-build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Run frontend tests
+        working-directory: client
+        run: npm test
+
+  
