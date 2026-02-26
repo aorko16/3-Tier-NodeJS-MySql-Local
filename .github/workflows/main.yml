@@ -1,0 +1,61 @@
+name: Fullstack CI-V1
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# Optional: prevent duplicate runs when pushing quickly / amending PRs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22               # ← updated (LTS in 2026; use 20.x if you must)
+          cache: 'npm'
+          # Better cache key for monorepo-style with separate lockfiles
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      # ----- SERVER -----
+      - name: Install server dependencies
+        working-directory: ./server
+        run: npm ci                      # ← changed to ci (recommended in CI)
+
+      - name: Run server tests
+        working-directory: ./server
+        run: npm test --if-present
+
+      # ----- CLIENT -----
+      - name: Install client dependencies
+        working-directory: ./client
+        run: npm ci                      # ← changed to ci
+
+      - name: Build client
+        working-directory: ./client
+        run: npm run build --if-present
+
+      # Optional but very useful — uncomment if you have client-side tests
+      # - name: Run client tests
+      #   working-directory: ./client
+      #   run: npm test --if-present
+
+      # Optional: Lint both if you have lint scripts
+      # - name: Lint server
+      #   working-directory: ./server
+      #   run: npm run lint --if-present
+      # - name: Lint client
+      #   working-directory: ./client
+      #   run: npm run lint --if-present
