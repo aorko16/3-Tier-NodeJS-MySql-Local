@@ -1,4 +1,4 @@
-name: Node.js Fullstack CI/CD V7777
+name: Node.js Fullstack CI/CD V77777
 
 on:
   push:
@@ -6,61 +6,11 @@ on:
 
 jobs:
   # =============================
-  # Stage 1: Pre-Build / Setup
+  # Stage 1: Build frontend
   # =============================
-  pre-build:
-    name: Pre-Build
+  build-frontend:
+    name: Build Frontend
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install server dependencies
-        working-directory: server
-        run: npm install
-
-      - name: Install client dependencies
-        working-directory: client
-        run: npm install
-
-      - name: Build client
-        working-directory: client
-        run: npm run build
-
-      - name: Upload client build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: client-build
-          path: client/build
-
-      - name: Upload server node_modules
-        uses: actions/upload-artifact@v4
-        with:
-          name: server-modules
-          path: server/node_modules
-
-      - name: Upload client node_modules
-        uses: actions/upload-artifact@v4
-        with:
-          name: client-modules
-          path: client/node_modules
-
-  # =============================
-  # Stage 2: Test Backend
-  # =============================
-  test-backend:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-    needs: pre-build
 
     steps:
       - name: Checkout repository
@@ -71,11 +21,39 @@ jobs:
         with:
           node-version: 18.x
 
-      - name: Download server node_modules
-        uses: actions/download-artifact@v4
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: server-modules
-          path: server/node_modules
+          name: client-build
+          path: client/build
+
+  # =============================
+  # Stage 2: Test Backend
+  # =============================
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install
 
       - name: Run backend tests
         working-directory: server
@@ -87,7 +65,7 @@ jobs:
   test-frontend:
     name: Frontend Tests
     runs-on: ubuntu-latest
-    needs: pre-build
+    needs: build-frontend
 
     steps:
       - name: Checkout repository
@@ -98,11 +76,15 @@ jobs:
         with:
           node-version: 18.x
 
-      - name: Download client node_modules
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Download frontend build artifact
         uses: actions/download-artifact@v4
         with:
-          name: client-modules
-          path: client/node_modules
+          name: client-build
+          path: client/build
 
       - name: Run frontend tests
         working-directory: client
@@ -120,14 +102,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Download client build artifact
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      - name: Download frontend build artifact
         uses: actions/download-artifact@v4
         with:
           name: client-build
           path: client/build
 
-      - name: Deploy to server
+      - name: Deploy application
         run: |
-          echo "Deploying server..."
-          # example deployment commands
-          echo "Deploying frontend build..."
+          echo "Deploy backend and frontend here"
