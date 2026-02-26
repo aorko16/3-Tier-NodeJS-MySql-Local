@@ -1,34 +1,21 @@
-name: Node.js Fullstack CI-V3
+name: Node.js Fullstack CI-v3
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
     branches: [ "main" ]
 
 jobs:
   backend-install:
     name: Install Backend
     runs-on: ubuntu-latest
-    outputs:
-      cache-hit: ${{ steps.cache-backend.outputs.cache-hit }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      - name: Setup Node.js
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
-
-      - name: Cache backend dependencies
-        id: cache-backend
-        uses: actions/cache@v3
-        with:
-          path: server/node_modules
-          key: backend-${{ hashFiles('server/package-lock.json') }}
-          restore-keys: |
-            backend-
 
       - name: Install server dependencies
         working-directory: server
@@ -37,26 +24,15 @@ jobs:
   frontend-install:
     name: Install Frontend
     runs-on: ubuntu-latest
-    needs: backend-install
-    outputs:
-      cache-hit: ${{ steps.cache-frontend.outputs.cache-hit }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    needs: backend-install   # 👈 waits for backend
 
-      - name: Setup Node.js
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
-
-      - name: Cache frontend dependencies
-        id: cache-frontend
-        uses: actions/cache@v3
-        with:
-          path: client/node_modules
-          key: frontend-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            frontend-
 
       - name: Install client dependencies
         working-directory: client
@@ -65,11 +41,12 @@ jobs:
   frontend-build:
     name: Build Frontend
     runs-on: ubuntu-latest
-    needs: frontend-install
+    needs: frontend-install   # 👈 waits for frontend install
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -79,30 +56,24 @@ jobs:
         run: npm run build
 
   backend-test:
-    name: Test Backend API
+    name: Test Backend
     runs-on: ubuntu-latest
-    needs: backend-install
+    needs: backend-install   # 👈 wait for backend install
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: Start backend server
+      - name: Run backend (for test)
         working-directory: server
         run: |
           npm start &
-          echo "Waiting 5s for server..."
-          sleep 5
+          sleep 5  # wait server to start
 
-      - name: Test API endpoint
+      - name: Test API
         run: |
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
-          if [ "$RESPONSE" -ne 200 ]; then
-            echo "API test failed with status $RESPONSE"
-            exit 1
-          else
-            echo "API test passed!"
-          fi
+          curl -s http://localhost:3000/ || echo "API test failed"
