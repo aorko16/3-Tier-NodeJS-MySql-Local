@@ -1,4 +1,4 @@
-name: Node.js Fullstack CI-Test--6666
+name: Node.js Fullstack CI-Test-Fixed-666
 
 on:
   push:
@@ -103,12 +103,13 @@ jobs:
         working-directory: server
         run: npm install
 
-      - name: Start backend server in background
+      - name: Start backend server in background and wait
         working-directory: server
         run: |
+          echo "Starting backend server..."
           node server.js &
           echo $! > server.pid
-          echo "Waiting for server..."
+          echo "Waiting for server to be ready..."
           n=0
           until curl -s http://localhost:3000/ || [ $n -eq 20 ]; do
             n=$((n+1))
@@ -127,4 +128,5 @@ jobs:
           fi
 
       - name: Stop backend server
-        run: kill $(cat server.pid)
+        run: |
+          kill $(cat server.pid) || true
