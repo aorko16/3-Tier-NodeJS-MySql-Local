@@ -1,4 +1,4 @@
-name: Node.js Fullstack CI--V6
+name: Node.js Fullstack CI-Test--6666
 
 on:
   push:
@@ -85,12 +85,6 @@ jobs:
         working-directory: client
         run: npm run build
 
-      - name: Upload frontend build artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: frontend-build
-          path: client/dist
-
   # 4️⃣ Backend API test
   backend-test:
     name: Backend API Test
@@ -105,7 +99,7 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install backend dependencies (ensure devDependencies)
+      - name: Install backend dependencies
         working-directory: server
         run: npm install
 
@@ -114,7 +108,7 @@ jobs:
         run: |
           node server.js &
           echo $! > server.pid
-          echo "Waiting for server to be ready..."
+          echo "Waiting for server..."
           n=0
           until curl -s http://localhost:3000/ || [ $n -eq 20 ]; do
             n=$((n+1))
