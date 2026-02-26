@@ -1,4 +1,4 @@
-name: Node.js Fullstack CI/CD V77
+name: Node.js Fullstack CI/CD V7777
 
 on:
   push:
@@ -11,7 +11,6 @@ jobs:
   pre-build:
     name: Pre-Build
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [18.x]
@@ -37,11 +36,23 @@ jobs:
         working-directory: client
         run: npm run build
 
-      - name: Upload build artifacts
+      - name: Upload client build artifact
         uses: actions/upload-artifact@v4
         with:
           name: client-build
           path: client/build
+
+      - name: Upload server node_modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-modules
+          path: server/node_modules
+
+      - name: Upload client node_modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-modules
+          path: client/node_modules
 
   # =============================
   # Stage 2: Test Backend
@@ -60,9 +71,11 @@ jobs:
         with:
           node-version: 18.x
 
-      - name: Install server dependencies
-        working-directory: server
-        run: npm install
+      - name: Download server node_modules
+        uses: actions/download-artifact@v4
+        with:
+          name: server-modules
+          path: server/node_modules
 
       - name: Run backend tests
         working-directory: server
@@ -85,12 +98,36 @@ jobs:
         with:
           node-version: 18.x
 
-      - name: Install client dependencies
-        working-directory: client
-        run: npm install
+      - name: Download client node_modules
+        uses: actions/download-artifact@v4
+        with:
+          name: client-modules
+          path: client/node_modules
 
       - name: Run frontend tests
         working-directory: client
         run: npm test
 
-  
+  # =============================
+  # Stage 4: Deploy
+  # =============================
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download client build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-build
+          path: client/build
+
+      - name: Deploy to server
+        run: |
+          echo "Deploying server..."
+          # example deployment commands
+          echo "Deploying frontend build..."
