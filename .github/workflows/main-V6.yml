@@ -7,17 +7,17 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   install-and-build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4   # ← better version in 2025
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js 18
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: npm
 
       # ── Backend ────────────────────────────────────────
       - name: Cache backend node_modules
@@ -25,11 +25,12 @@ jobs:
         with:
           path: server/node_modules
           key: ${{ runner.os }}-node-backend-${{ hashFiles('server/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-backend-
+          restore-keys: |
+            ${{ runner.os }}-node-backend-
 
       - name: Install backend dependencies
         working-directory: server
-        run: npm ci    # ← prefer npm ci in CI
+        run: npm ci
 
       # ── Frontend ───────────────────────────────────────
       - name: Cache frontend node_modules
@@ -37,7 +38,8 @@ jobs:
         with:
           path: client/node_modules
           key: ${{ runner.os }}-node-frontend-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-frontend-
+          restore-keys: |
+            ${{ runner.os }}-node-frontend-
 
       - name: Install frontend dependencies
         working-directory: client
@@ -53,18 +55,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: npm
 
       - name: Restore backend cache
         uses: actions/cache@v4
         with:
           path: server/node_modules
           key: ${{ runner.os }}-node-backend-${{ hashFiles('server/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-backend-
+          restore-keys: |
+            ${{ runner.os }}-node-backend-
 
-      - name: Install backend (if cache miss)
+      - name: Install backend dependencies (if cache miss)
         working-directory: server
         run: npm ci
 
@@ -76,14 +82,29 @@ jobs:
 
       - name: Wait for API to respond
         run: |
-          timeout 45s bash -c "until curl -s -f http://localhost:3000/; do sleep 1; done" || {
-            echo "Server failed to start within 45 seconds"
-            cat server.log
+          timeout 45s bash -c "until curl -s -f http://127.0.0.1:3000/; do sleep 1; done" || {
+            echo 'Server failed to start within 45 seconds'
+            cat server/server.log || true
             exit 1
           }
-          echo "Server responded successfully ✓"
+          echo 'Server responded successfully ✓'
 
-      # Optional: kill server after test (polite)
+      # Run your backend tests here
+      # - name: Test backend
+      #   working-directory: server
+      #   run: npm test
+
       - name: Stop server
         if: always()
-        run: kill $(cat /tmp/server.pid) || true
+        run: |
+          if [ -f /tmp/server.pid ]; then
+            PID="$(cat /tmp/server.pid)"
+            if kill -0 "$PID" 2>/dev/null; then
+              kill "$PID" || true
+              echo "Stopped server process $PID"
+            else
+              echo "Process $PID not running"
+            fi
+          else
+            echo "PID file not found, nothing to kill"
+          fi
