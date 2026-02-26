@@ -1,4 +1,4 @@
-name: Node.js Fullstack CI-v44
+name: Node.js Fullstack CI-V55
 
 on:
   push:
@@ -7,59 +7,104 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # 1️⃣ Backend Install
+  # 1️⃣ Install backend dependencies
   backend-install:
+    name: Install Backend
     runs-on: ubuntu-latest
-    outputs:
-      node-version: 18
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: 18
-      - uses: actions/cache@v3
+
+      - name: Cache backend dependencies
+        uses: actions/cache@v3
         with:
           path: server/node_modules
           key: backend-${{ hashFiles('server/package-lock.json') }}
-      - run: npm install
-        working-directory: server
+          restore-keys: |
+            backend-
 
-  # 2️⃣ Frontend Install & Build in same job
-  frontend-build:
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install
+
+  # 2️⃣ Install frontend dependencies
+  frontend-install:
+    name: Install Frontend
     runs-on: ubuntu-latest
     needs: backend-install
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: 18
-      # cache frontend node_modules
-      - uses: actions/cache@v3
+
+      - name: Cache frontend dependencies
+        uses: actions/cache@v3
         with:
           path: client/node_modules
           key: frontend-${{ hashFiles('client/package-lock.json') }}
-      - run: npm install
-        working-directory: client
-      - run: npm run build
-        working-directory: client
+          restore-keys: |
+            frontend-
 
-  # 3️⃣ Backend Test
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install
+
+  # 3️⃣ Build frontend
+  frontend-build:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: frontend-install
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+  # 4️⃣ Backend API test
   backend-test:
+    name: Test Backend API
     runs-on: ubuntu-latest
     needs: backend-install
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: 18
-      - run: npm install
+
+      - name: Install backend dependencies (ensure devDependencies)
         working-directory: server
-      - name: Start backend server
+        run: npm install
+
+      - name: Start backend server in background
+        working-directory: server
         run: |
-          PORT=3000 nohup npm start &
-          echo "Waiting for server..."
-          sleep 10
-      - name: Test API
+          node server.js &
+          echo $! > server.pid
+          echo "Waiting for server to start..."
+          n=0
+          until curl -s http://localhost:3000/ || [ $n -eq 15 ]; do
+            n=$((n+1))
+            echo "Waiting $n..."
+            sleep 2
+          done
+
+      - name: Test API endpoint
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
           if [ "$STATUS" -ne 200 ]; then
@@ -67,3 +112,7 @@ jobs:
             exit 1
           else
             echo "API test passed!"
+          fi
+
+      - name: Stop server
+        run: kill $(cat server.pid)
